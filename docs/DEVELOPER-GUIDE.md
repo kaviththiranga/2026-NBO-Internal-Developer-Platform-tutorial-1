@@ -363,7 +363,7 @@ accepted silently and produces env vars with empty names.
 ```bash
 occ apply -f manifests/app/06-component-loan-api-go.yaml
 occ component workflow run  loan-api-go -n $NS -p $PROJECT
-occ component workflow logs loan-api-go -n $NS -p $PROJECT      # follow it
+occ component workflow logs loan-api-go -n $NS -f                 # follow it (logs takes no -p)
 ```
 
 Steps: `checkout-source → build-image → publish-image → generate-workload-cr`
