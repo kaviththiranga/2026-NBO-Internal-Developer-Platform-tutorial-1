@@ -4,7 +4,7 @@
 # an environment — see 22-resource-bindings.yaml.
 #
 # All three types are the team's own namespace-scoped ResourceTypes
-# (manifests/platform/12-resourcetype-postgres.yaml, 13-…-nats.yaml, 14-…-valkey.yaml).
+# (manifests/platform/10-resourcetype-postgres.yaml, 11-…-nats.yaml, 12-…-valkey.yaml).
 # postgres is the only one that takes a parameter. type is IMMUTABLE.
 #
 # What each one hands to a Workload, by output name (bind with envBindings):

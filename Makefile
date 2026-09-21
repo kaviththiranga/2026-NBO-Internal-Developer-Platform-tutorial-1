@@ -204,7 +204,7 @@ images:
 
 # Push to YOUR registry. Log in first (docker login / aws ecr get-login-password /
 # gh auth token | docker login ghcr.io …). Then put the same REGISTRY into
-# manifests/app/24-workloads.yaml (docs/BUILD-IMAGES.md).
+# manifests/app/05-workloads.yaml (docs/BUILD-IMAGES.md).
 push:
 	@if [[ -z "$$REGISTRY" ]]; then \
 		echo "REGISTRY is required, e.g. make push REGISTRY=ghcr.io/you"; exit 1; \

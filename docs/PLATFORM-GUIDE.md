@@ -38,8 +38,8 @@ manifests/platform/
   01-namespace  02-environments  03-pipeline            the tenancy
   04-projecttype-bank-cell                              ProjectType
   05..09-componenttype-*                                ComponentType ×5
-  12..14-resourcetype-*                                 ResourceType ×3
-  10-authzrolebinding-kifaru-developers                 ClusterAuthzRoleBinding
+  10..12-resourcetype-*                                 ResourceType ×3
+  13-authzrolebinding-kifaru-developers                 ClusterAuthzRoleBinding
 ```
 
 OpenChoreo has two scopes for every type. `ClusterComponentType` is a
@@ -81,7 +81,7 @@ occ clusterdataplane get default       # spec.gateway.ingress.external.namespace
 If you just want the platform up:
 
 ```bash
-occ apply -f manifests/platform/          # all 14 files, in order
+occ apply -f manifests/platform/          # all 13 files, in order
 
 occ projecttype list -n $NS               # bank-cell
 occ componenttype list -n $NS             # internal-engine event-consumer regulated-batch web-frontend public-api
@@ -365,7 +365,7 @@ Bindings map a **JWT claim** to a role — they are not per-user. The shipped
 The bank's is narrower:
 
 ```bash
-occ apply -f manifests/platform/10-authzrolebinding-kifaru-developers.yaml
+occ apply -f manifests/platform/13-authzrolebinding-kifaru-developers.yaml
 occ clusterauthzrolebinding get kifaru-bank-developers-binding
 ```
 
@@ -395,9 +395,9 @@ JetStream consumer at startup and crash-loops without it.
 So the team derives its own, namespace-scoped, from those samples:
 
 ```bash
-occ apply -f manifests/platform/12-resourcetype-postgres.yaml     # sample, unchanged apart from kind + namespace
-occ apply -f manifests/platform/13-resourcetype-nats.yaml         # + --jetstream --store_dir /data on an emptyDir, 128Mi
-occ apply -f manifests/platform/14-resourcetype-valkey.yaml       # sample, unchanged
+occ apply -f manifests/platform/10-resourcetype-postgres.yaml     # sample, unchanged apart from kind + namespace
+occ apply -f manifests/platform/11-resourcetype-nats.yaml         # + --jetstream --store_dir /data on an emptyDir, 128Mi
+occ apply -f manifests/platform/12-resourcetype-valkey.yaml       # sample, unchanged
 occ resourcetype list -n $NS
 ```
 

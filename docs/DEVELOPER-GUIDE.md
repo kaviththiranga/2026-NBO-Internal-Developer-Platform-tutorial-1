@@ -9,13 +9,13 @@ in apply order:
 
 | File | Step |
 |---|---|
-| `20-project-lending.yaml` | D1 — the project and its cells |
-| `21-resources.yaml` | D2 — postgres, nats, valkey |
-| `22-resource-bindings.yaml` | D2 — placement; `occ resource promote` pins the release |
-| `23-components.yaml` | D4 — the six pre-built components |
-| `24-workloads.yaml` | D5 — **edit**: `<REGISTRY>`, then `API_BASE_URL` ×2 after D8 |
-| `25-component-loan-api-go.yaml` | D6 — built from this repo's source |
-| `29-releasebinding-credit-scoring-cpu.yaml` | D7 — **edit**: `releaseName` |
+| `01-project-lending.yaml` | D1 — the project and its cells |
+| `02-resources.yaml` | D2 — postgres, nats, valkey |
+| `03-resource-bindings.yaml` | D2 — placement; `occ resource promote` pins the release |
+| `04-components.yaml` | D4 — the six pre-built components |
+| `05-workloads.yaml` | D5 — **edit**: `<REGISTRY>`, then `API_BASE_URL` ×2 after D8 |
+| `06-component-loan-api-go.yaml` | D6 — built from this repo's source |
+| `07-releasebinding-credit-scoring-cpu.yaml` | D7 — **edit**: `releaseName` |
 
 Tested against OpenChoreo 1.2.x (`occ` 1.2.5).
 
@@ -39,7 +39,7 @@ occ resourcetype list -n $NS               # postgres nats valkey
 
 **Six images must be in a registry** your nodes can pull from — `BUILD-IMAGES.md`.
 `loan-api-go` is the exception: the platform builds it from source, so the
-repository the platform reads must be reachable. `25-component-loan-api-go.yaml`
+repository the platform reads must be reachable. `06-component-loan-api-go.yaml`
 points at this repository on GitHub; if you fork it, or it is private, change
 `repository.url` (and add `secretRef` for a private one — a `SecretReference` in
 `$NS` holding git credentials).
@@ -75,7 +75,7 @@ ReleaseBinding per environment.
 ProjectType schema. The file is already written; this is how it was produced:
 
 ```bash
-occ project scaffold lending --projecttype bank-cell --namespace $NS -o /tmp/20.yaml
+occ project scaffold lending --projecttype bank-cell --namespace $NS -o /tmp/01-project.yaml
 ```
 
 The two parameters the platform demands — `costCentre` must match
@@ -102,7 +102,7 @@ The same file contains **one ProjectReleaseBinding per environment** — that is
 what creates the cells.
 
 ```bash
-occ apply -f manifests/app/20-project-lending.yaml
+occ apply -f manifests/app/01-project-lending.yaml
 occ projectreleasebinding list -n $NS -p $PROJECT     # -p is NOT optional
 ```
 
@@ -132,7 +132,7 @@ Three Resources from the team's ResourceTypes. Only `postgres` takes a parameter
 `spec.type` is **immutable**.
 
 ```bash
-occ apply -f manifests/app/21-resources.yaml
+occ apply -f manifests/app/02-resources.yaml
 occ resource list -n $NS -p $PROJECT
 ```
 
@@ -148,7 +148,7 @@ does not deploy until a release is pinned to that placement.** Two acts, two
 commands:
 
 ```bash
-occ apply -f manifests/app/22-resource-bindings.yaml       # placement: owner + environment, no release
+occ apply -f manifests/app/03-resource-bindings.yaml       # placement: owner + environment, no release
 occ resourcereleasebinding list -n $NS                     # Synced=False: "spec.resourceRelease is unset"
 for r in loans-db loan-events disb-claims; do
   occ resource promote $r --env development -n $NS         # pins status.latestRelease
@@ -202,7 +202,7 @@ guess:
 | the postgres Service | `loans-db` | `r-loans-db-development-<hash>` — named for the **release** |
 | its secret | `loans-db-creds` | `r-loans-db-development-<hash>-creds` |
 | the username | `kifaru` | `loans-db-user` — `<resource>-user` |
-| the database | — | `kifaru`, as set in `21-resources.yaml` |
+| the database | — | `kifaru`, as set in `02-resources.yaml` |
 
 It ends by printing the four seeded loans. **Expect 12 / 47 / 78 / 124 days past
 due**; due dates anchor to `CURRENT_DATE` at seed time, so re-seed (`--reseed`)
@@ -217,7 +217,7 @@ Scaffold gives you the exact shape:
 ```bash
 occ component scaffold credit-scoring \
   --componenttype deployment/internal-engine \
-  -n $NS -p $PROJECT -o /tmp/23-credit-scoring.yaml
+  -n $NS -p $PROJECT -o /tmp/04-credit-scoring.yaml
 ```
 
 ```yaml
@@ -248,7 +248,7 @@ source build.
 | `loan-application-portal` | `deployment/web-frontend` |
 
 ```bash
-occ apply -f manifests/app/23-components.yaml
+occ apply -f manifests/app/04-components.yaml
 occ component list -n $NS -p $PROJECT
 ```
 
@@ -297,8 +297,8 @@ component's in-cell address. The full file has all six. Put your registry in and
 apply:
 
 ```bash
-sed -i.bak 's#<REGISTRY>#ghcr.io/your-org#g' manifests/app/24-workloads.yaml && rm manifests/app/24-workloads.yaml.bak
-occ apply -f manifests/app/24-workloads.yaml
+sed -i.bak 's#<REGISTRY>#ghcr.io/your-org#g' manifests/app/05-workloads.yaml && rm manifests/app/05-workloads.yaml.bak
+occ apply -f manifests/app/05-workloads.yaml
 ```
 
 **Three rules worth repeating:**
@@ -324,7 +324,7 @@ and nothing else.
 occ component scaffold loan-api-go \
   --componenttype deployment/public-api \
   --clusterworkflow dockerfile-builder \
-  -n $NS -p $PROJECT -o /tmp/25.yaml
+  -n $NS -p $PROJECT -o /tmp/06-loan-api-go.yaml
 ```
 
 ```yaml
@@ -361,7 +361,7 @@ an **array** of endpoints and `name:` (not `key:`) for env entries — a `key:` 
 accepted silently and produces env vars with empty names.
 
 ```bash
-occ apply -f manifests/app/25-component-loan-api-go.yaml
+occ apply -f manifests/app/06-component-loan-api-go.yaml
 occ component workflow run  loan-api-go -n $NS -p $PROJECT
 occ component workflow logs loan-api-go -n $NS -p $PROJECT      # follow it
 ```
@@ -410,8 +410,8 @@ unavailable** when it is late. The limit is an environment config, so it is the
 developer's to set, on the binding:
 
 ```bash
-occ releasebinding get credit-scoring-development -n $NS | grep releaseName   # -> 29-…yaml
-occ apply -f manifests/app/29-releasebinding-credit-scoring-cpu.yaml
+occ releasebinding get credit-scoring-development -n $NS | grep releaseName   # -> 07-…yaml
+occ apply -f manifests/app/07-releasebinding-credit-scoring-cpu.yaml
 ```
 
 At 500m the pod rolls and the first submission on a fresh pod comes back 201.
@@ -430,7 +430,7 @@ occ releasebinding get loan-officer-console-development -n $NS
 ```
 
 Put `loan-api-go`'s external URL into both frontends' `API_BASE_URL` in
-`24-workloads.yaml` and re-apply — the other four Workloads are unchanged, so
+`05-workloads.yaml` and re-apply — the other four Workloads are unchanged, so
 they are no-ops. Then smoke it:
 
 ```bash
@@ -474,7 +474,7 @@ same application again → nothing is paid twice.
 to `visibility: [external]` and re-apply:
 
 ```bash
-occ apply -f manifests/app/24-workloads.yaml                 # accepted
+occ apply -f manifests/app/05-workloads.yaml                 # accepted
 occ component deploy credit-scoring -n $NS -p $PROJECT       # "Successfully deployed"
 occ releasebinding list -n $NS                               # STATUS: RenderingFailed
 occ releasebinding get credit-scoring-development -n $NS

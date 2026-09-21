@@ -74,12 +74,12 @@ Registry notes:
 
 ## 3. Tell the platform where they are
 
-`manifests/app/24-workloads.yaml` references every image as
+`manifests/app/05-workloads.yaml` references every image as
 `<REGISTRY>/kifaru-<component>:v1`. Replace `<REGISTRY>` with the value you
 pushed to:
 
 ```bash
-sed -i.bak 's#<REGISTRY>#ghcr.io/your-org#g' manifests/app/24-workloads.yaml && rm manifests/app/24-workloads.yaml.bak
+sed -i.bak 's#<REGISTRY>#ghcr.io/your-org#g' manifests/app/05-workloads.yaml && rm manifests/app/05-workloads.yaml.bak
 ```
 
 Then continue with `DEVELOPER-GUIDE.md`.
