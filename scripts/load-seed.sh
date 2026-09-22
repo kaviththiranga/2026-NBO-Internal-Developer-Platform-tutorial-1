@@ -52,15 +52,6 @@ CELL=$(occ projectreleasebinding get "${PROJECT}-${ENVIRONMENT}" -n "$OC_NS" \
   exit 1; }
 echo "    $CELL"
 
-# The cell lives on the DATA PLANE. On a multi-cluster install that is a different
-# cluster from the one occ talks to; on the wrong context this is where it fails.
-if ! "${KUBECTL[@]}" get ns "$CELL" >/dev/null 2>&1; then
-  echo "ERROR: namespace $CELL is not visible via '${KUBECTL[*]}' (current context: $(kubectl config current-context 2>/dev/null || echo '?'))." >&2
-  echo "       The cell is on the data plane. Set KUBE_CONTEXT to the data-plane cluster's kubectl context, e.g." >&2
-  echo "         KUBE_CONTEXT=<data-plane-context> $0 $ENVIRONMENT" >&2
-  exit 1
-fi
-
 echo "==> finding the postgres service"
 SVC=$("${KUBECTL[@]}" get svc -n "$CELL" -o name | grep loans-db | head -1 | cut -d/ -f2)
 [ -n "$SVC" ] || {

@@ -1,22 +1,20 @@
-# D2 (part 2) — PLACE each Resource in each environment.
+# D2 (part 2) — PLACE each Resource in the development environment.
 #
-# A binding says WHERE a resource may run. It does not say WHICH release: that is
-# promotion, and it is a separate, deliberate act, per environment:
+# A binding says WHERE a resource runs. It does not say WHICH release: that is
+# promotion, and it is a separate, deliberate act:
 #
-#   occ apply -f 03-resource-bindings.yaml
-#   for r in loans-db loan-events disb-claims; do
-#     occ resource promote $r --env development -n kifaru-bank        # D2
-#   done
-#   … later, D9:  occ resource promote $r --env staging -n kifaru-bank
+#   occ apply -f 22-resource-bindings.yaml
+#   occ resource promote loans-db    --env development -n kifaru-bank
+#   occ resource promote loan-events --env development -n kifaru-bank
+#   occ resource promote disb-claims --env development -n kifaru-bank
 #
 # Until promoted, a binding reports Synced=False "spec.resourceRelease is unset;
-# pin a ResourceRelease to deploy this binding" — staging and production sit like
-# that, harmlessly, until you promote into them. promote reads the resource's
+# pin a ResourceRelease to deploy this binding". promote reads the resource's
 # status.latestRelease and pins it — no hash is ever copied by hand, and git
 # never carries one. Re-run promote after changing a Resource's parameters.
 #
-# One Resource, three placements: three separate databases, brokers and caches,
-# one per cell. Nothing is shared between environments.
+# Staging and production need their own copies with `environment:` changed and
+# their own promote — a Resource placed in development runs in development only.
 ---
 apiVersion: openchoreo.dev/v1alpha1
 kind: ResourceReleaseBinding
@@ -50,69 +48,3 @@ spec:
     projectName: lending
     resourceName: disb-claims
   environment: development
----
-apiVersion: openchoreo.dev/v1alpha1
-kind: ResourceReleaseBinding
-metadata:
-  name: loans-db-staging
-  namespace: kifaru-bank
-spec:
-  owner:
-    projectName: lending
-    resourceName: loans-db
-  environment: staging
----
-apiVersion: openchoreo.dev/v1alpha1
-kind: ResourceReleaseBinding
-metadata:
-  name: loan-events-staging
-  namespace: kifaru-bank
-spec:
-  owner:
-    projectName: lending
-    resourceName: loan-events
-  environment: staging
----
-apiVersion: openchoreo.dev/v1alpha1
-kind: ResourceReleaseBinding
-metadata:
-  name: disb-claims-staging
-  namespace: kifaru-bank
-spec:
-  owner:
-    projectName: lending
-    resourceName: disb-claims
-  environment: staging
----
-apiVersion: openchoreo.dev/v1alpha1
-kind: ResourceReleaseBinding
-metadata:
-  name: loans-db-production
-  namespace: kifaru-bank
-spec:
-  owner:
-    projectName: lending
-    resourceName: loans-db
-  environment: production
----
-apiVersion: openchoreo.dev/v1alpha1
-kind: ResourceReleaseBinding
-metadata:
-  name: loan-events-production
-  namespace: kifaru-bank
-spec:
-  owner:
-    projectName: lending
-    resourceName: loan-events
-  environment: production
----
-apiVersion: openchoreo.dev/v1alpha1
-kind: ResourceReleaseBinding
-metadata:
-  name: disb-claims-production
-  namespace: kifaru-bank
-spec:
-  owner:
-    projectName: lending
-    resourceName: disb-claims
-  environment: production
