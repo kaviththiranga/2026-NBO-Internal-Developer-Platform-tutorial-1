@@ -148,12 +148,12 @@ does not deploy until a release is pinned to that placement.** Two acts, two
 commands:
 
 ```bash
-occ apply -f manifests/app/03-resource-bindings.yaml       # placement: owner + environment, no release
-occ resourcereleasebinding list -n $NS                     # Synced=False: "spec.resourceRelease is unset"
+occ apply -f manifests/app/03-resource-bindings.yaml       # placements: owner + environment, no release — all three environments
+occ resourcereleasebinding list -n $NS                     # 9 × Synced=False: "spec.resourceRelease is unset"
 for r in loans-db loan-events disb-claims; do
   occ resource promote $r --env development -n $NS         # pins status.latestRelease
 done
-occ resourcereleasebinding list -n $NS                     # no -p flag on this one
+occ resourcereleasebinding list -n $NS                     # development ×3 Ready; staging/production stay unset until D9
 ```
 
 ```
@@ -446,22 +446,64 @@ dependencies you declared. `APP-100245` is the designed **DECLINED** case.
 
 ---
 
-## D9 — Promote
+## D9 — Promote: staging, then production
 
-Promotion creates a **second binding pointing at the same release** — no rebuild,
-no re-render. The platform's pipeline decides what is legal.
+Promotion creates a **binding in the next environment pointing at the same
+release** — no rebuild, no re-render of the Workload. The PE's pipeline decides
+what is legal: development → staging → production, and `--to production` from
+development has nowhere to go.
+
+Three things are per environment, and the binding is where each lives:
+
+| Per environment | Mechanism |
+|---|---|
+| the infrastructure | a placement per environment (all nine are in `03-resource-bindings.yaml`) + `occ resource promote --env` |
+| **production replica floor** | the types refuse `replicas < 2` in production → `--set spec.componentTypeEnvironmentConfigs.replicas=2` |
+| the frontends' `API_BASE_URL` | the Workload is shared, so override the env var **on the binding**: `--set spec.workloadOverrides.container.env[0].key=API_BASE_URL …value=<that environment's API URL>` — overrides merge by key |
+
+`--set` takes a JSON path on the ReleaseBinding; `occ releasebinding get <name>` shows
+where it landed. The same overrides you put in `07-…` for development go on the
+binding here.
 
 ```bash
-occ component deploy credit-scoring -n $NS -p $PROJECT --to staging
-occ releasebinding list -n $NS
+ENV=staging                                   # then ENV=production — promoted FROM staging
+REPL=1; [ "$ENV" = production ] && REPL=2
+
+# 1. infrastructure: pin this environment's releases (placements already exist)
+for r in loans-db loan-events disb-claims; do occ resource promote $r --env $ENV -n $NS; done
+occ resourcereleasebinding list -n $NS | grep $ENV                # 3 × Ready in ~60 s
+
+# 2. a new, empty database
+KUBE_CONTEXT=<data-plane context> ./scripts/load-seed.sh $ENV
+
+# 3. the API first (the frontends need its URL), then the rest
+occ component deploy loan-api-go    -n $NS -p $PROJECT --to $ENV --set spec.componentTypeEnvironmentConfigs.replicas=$REPL
+occ component deploy credit-scoring -n $NS -p $PROJECT --to $ENV --set spec.componentTypeEnvironmentConfigs.replicas=$REPL \
+  --set spec.componentTypeEnvironmentConfigs.resources.limits.cpu=500m \
+  --set spec.componentTypeEnvironmentConfigs.resources.limits.memory=512Mi
+for c in payment-rail-stub disbursement-worker; do
+  occ component deploy $c -n $NS -p $PROJECT --to $ENV --set spec.componentTypeEnvironmentConfigs.replicas=$REPL
+done
+occ component deploy arrears-eod -n $NS -p $PROJECT --to $ENV   # cronjob: no replicas rule
+
+# 4. read THIS environment's API URL from the binding, then the frontends with it
+API=$(occ releasebinding get loan-api-go-$ENV -n $NS | awk '/externalURLs:/{p=1} p' \
+      | awk '/https:/{h=1} h&&/host:/{host=$2} h&&/path:/{print "https://"host$2; exit}')
+for c in loan-officer-console loan-application-portal; do
+  occ component deploy $c -n $NS -p $PROJECT --to $ENV --set spec.componentTypeEnvironmentConfigs.replicas=$REPL \
+    --set "spec.workloadOverrides.container.env[0].key=API_BASE_URL" \
+    --set "spec.workloadOverrides.container.env[0].value=$API"
+done
+occ releasebinding list -n $NS | grep $ENV                        # 7 × Ready
 ```
 
-Staging needs its own cell (created in D1), its own resource placements (D2
-again with `environment: staging` + `occ resource promote … --env staging`), and
-its own schema load (D3).
+Run the block once with `ENV=staging`, smoke it (D8 with `$ENV` in the URLs), then
+again with `ENV=production`. Skip the `--set …replicas` in staging and it still
+works; skip it in production and every deployment-type component reports
+`RenderingFailed: Production requires at least two replicas` — worth showing once.
 
-`--to production` from development has nowhere to go — the pipeline has no such
-edge.
+`occ component deploy … --to production` straight from development is refused:
+the pipeline has no such edge.
 
 ---
 
