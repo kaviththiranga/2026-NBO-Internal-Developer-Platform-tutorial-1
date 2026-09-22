@@ -5,13 +5,14 @@
 # with no change here.
 #
 # The shipped developer-binding maps groups=developers with scope {} (cluster
-# wide). This one is narrower: the bank's developers get the developer role
-# ONLY inside kifaru-bank. A developer from another tenant on the same cluster
-# has no access here at all.
+# wide) to the shipped developer role, which cannot create projects. This one is
+# narrower AND different: the bank's developers get the bank's OWN role
+# (13-authzrole-kifaru-developer.yaml: shipped developer + project create/update/
+# delete) ONLY inside kifaru-bank. A developer from another tenant on the same
+# cluster has no access here at all.
 #
 # ClusterAuthzRoleBinding is cluster-scoped, so its name carries the namespace.
-# Verifying the refusal needs an IdP user in the kifaru-bank-developers group —
-# IdP admin work, outside OpenChoreo.
+# The IdP side — a user in the kifaru-bank-developers group — is P8b in the guide.
 ---
 apiVersion: openchoreo.dev/v1alpha1
 kind: ClusterAuthzRoleBinding
@@ -25,6 +26,6 @@ spec:
   roleMappings:
     - roleRef:
         kind: ClusterAuthzRole
-        name: developer
+        name: kifaru-developer
       scope:
         namespace: kifaru-bank

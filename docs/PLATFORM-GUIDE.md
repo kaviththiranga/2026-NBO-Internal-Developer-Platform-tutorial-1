@@ -39,7 +39,8 @@ manifests/platform/
   04-projecttype-bank-cell                              ProjectType
   05..09-componenttype-*                                ComponentType ×5
   10..12-resourcetype-*                                 ResourceType ×3
-  13-authzrolebinding-kifaru-developers                 ClusterAuthzRoleBinding
+  13-authzrole-kifaru-developer                         ClusterAuthzRole — shipped developer + project create/update/delete
+  14-authzrolebinding-kifaru-developers                 ClusterAuthzRoleBinding
 ```
 
 OpenChoreo has two scopes for every type. `ClusterComponentType` is a
@@ -81,7 +82,7 @@ occ clusterdataplane get default       # spec.gateway.ingress.external.namespace
 If you just want the platform up:
 
 ```bash
-occ apply -f manifests/platform/          # all 13 files, in order
+occ apply -f manifests/platform/          # all 14 files, in order
 
 occ projecttype list -n $NS               # bank-cell
 occ componenttype list -n $NS             # internal-engine event-consumer regulated-batch web-frontend public-api
@@ -365,14 +366,32 @@ Bindings map a **JWT claim** to a role — they are not per-user. The shipped
 The bank's is narrower:
 
 ```bash
-occ apply -f manifests/platform/13-authzrolebinding-kifaru-developers.yaml
+occ apply -f manifests/platform/13-authzrole-kifaru-developer.yaml
+occ apply -f manifests/platform/14-authzrolebinding-kifaru-developers.yaml
 occ clusterauthzrolebinding get kifaru-bank-developers-binding
 ```
 
-`groups: kifaru-bank-developers` → the `developer` role, **scoped to `kifaru-bank`
-only**. (`ClusterAuthzRoleBinding` is cluster-scoped by nature, which is why its
-name carries the namespace.) Onboarding is entirely IdP-side: put a person in the
-group and the platform grants the role with no change here.
+`groups: kifaru-bank-developers` → the **`kifaru-developer`** role, **scoped to
+`kifaru-bank` only**. (`ClusterAuthzRoleBinding` is cluster-scoped by nature, which
+is why its name carries the namespace.) Onboarding is entirely IdP-side: put a
+person in the group and the platform grants the role with no change here.
+
+### Why the bank has its own developer role
+
+The shipped `developer` role has `project:view` and **no `project:create`** — in
+OpenChoreo's default model a Project, and the cell it gets, is a platform-engineer
+object; only `platform-engineer` carries the project verbs:
+
+```bash
+occ clusterauthzrole get developer
+occ clusterauthzrole get platform-engineer
+```
+
+This bank wants developers to create their own projects inside their namespace
+(`DEVELOPER-GUIDE.md` D1), so `13-authzrole-kifaru-developer.yaml` is the shipped
+list plus `project:create`, `project:update`, `project:delete` — nothing else. A
+role is a list of verbs; the bank wrote down the one it needed rather than handing
+developers the platform-engineer role.
 
 ### The developer account (IdP side)
 
@@ -545,7 +564,8 @@ occ project delete lending -n $NS
 ```bash
 occ namespace delete $NS                    # takes projects, environments, pipeline, cells, and the namespaced types
 occ clusterauthzrolebinding delete kifaru-bank-developers-binding
+occ clusterauthzrole delete kifaru-developer               # only once no binding uses it
 ```
 
-Nothing cluster-scoped is left behind except the authz binding — which is the
-point of keeping the types in the namespace.
+Nothing cluster-scoped is left behind except the authz role and binding — which
+is the point of keeping the types in the namespace.
