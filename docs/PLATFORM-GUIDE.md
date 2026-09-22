@@ -372,9 +372,32 @@ occ clusterauthzrolebinding get kifaru-bank-developers-binding
 `groups: kifaru-bank-developers` → the `developer` role, **scoped to `kifaru-bank`
 only**. (`ClusterAuthzRoleBinding` is cluster-scoped by nature, which is why its
 name carries the namespace.) Onboarding is entirely IdP-side: put a person in the
-group and the platform grants the role with no change here. To see the refusal
-beat — a developer denied a platform-engineer action — you need a user in your
-IdP who is in `kifaru-bank-developers` and not in `platform-engineers`.
+group and the platform grants the role with no change here.
+
+### The developer account (IdP side)
+
+To see the refusal — a developer denied a platform-engineer action — create a user
+in your IdP who is in `kifaru-bank-developers` and **not** in `platform-engineers`
+or the shipped `developers` group (both bindings are cluster-wide).
+
+On an install that uses the bundled Thunder IdP, that is the Thunder Console at
+`<thunder url>/console/`, signed in as the Thunder admin (`admin`; the quick-start
+prints or stores its password — on the Helm install it is the `admin-password` key of
+the `thunder-admin-credentials` secret). Any other account can sign in and then gets
+`403` on every admin page. In the console, organization unit **Default**:
+
+1. **Users → New**, type `openchoreo-user` — `username` (e.g. `dev@kifaru.bank`),
+   `email`, `given_name`, `family_name`, `password`.
+2. **Groups → New** `kifaru-bank-developers`, member: that user. The name must match
+   the binding's `entitlement.value` exactly.
+
+Verify from a second session:
+
+```bash
+occ login                                                        # as the developer
+occ component list -n $NS -p lending                             # allowed
+occ apply -f manifests/platform/04-projecttype-bank-cell.yaml    # refused
+```
 
 ---
 
